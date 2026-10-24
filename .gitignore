@@ -1,0 +1,6 @@
+logs/
+agent/
+node_modules/
+.DS_Store
+*.log
+bridge.env
