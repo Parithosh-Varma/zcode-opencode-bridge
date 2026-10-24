@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax check bridge and front proxy
+        run: |
+          node --check zcode-http-hook.cjs
+          node --check zcode-front-proxy.mjs
+
+      - name: Syntax check install script
+        run: sh -n install.sh
+
+      - name: Validate opencode.json.example
+        run: node -e 'JSON.parse(require("fs").readFileSync("opencode.json.example","utf8"))'
+
+      - name: Sanity check hook contains capture guard and system subset logic
+        run: |
+          grep -q 'isOfficialTemplate' zcode-http-hook.cjs
+          grep -q 'tpl.system.slice' zcode-http-hook.cjs
+          grep -q 'BRIDGE_NOT_READY' zcode-http-hook.cjs

@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(124, 92, 255, 0.35), transparent 60%),
+      radial-gradient(800px 600px at -10% 110%, rgba(0, 190, 160, 0.28), transparent 60%),
+      linear-gradient(135deg, #0b0f1e 0%, #101736 55%, #0b1224 100%);
+    color: #eef2ff;
+    position: relative;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(1000px 640px at 50% 40%, rgba(0,0,0,0.9), transparent 85%);
+    -webkit-mask-image: radial-gradient(1000px 640px at 50% 40%, rgba(0,0,0,0.9), transparent 85%);
+  }
+  .wrap { position: absolute; inset: 0; padding: 64px 72px; display: flex; }
+  .left { width: 660px; display: flex; flex-direction: column; justify-content: center; gap: 26px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .chip {
+    font-size: 19px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #9db4ff; background: rgba(124, 92, 255, 0.16);
+    border: 1px solid rgba(148, 128, 255, 0.45); border-radius: 999px; padding: 8px 18px;
+  }
+  h1 { font-size: 66px; line-height: 1.04; font-weight: 800; letter-spacing: -0.02em; }
+  h1 .arrow { color: #8be9c8; }
+  .sub { font-size: 27px; line-height: 1.35; color: #c6d2f2; max-width: 600px; }
+  .sub b { color: #ffffff; font-weight: 700; }
+  .pills { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .pill {
+    font-size: 19px; font-weight: 600; padding: 9px 18px; border-radius: 10px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: #e7edff;
+  }
+  .pill.g { color: #8be9c8; border-color: rgba(139, 233, 200, 0.4); background: rgba(0,190,160,0.10); }
+  .right { flex: 1; display: flex; align-items: center; justify-content: flex-end; }
+  .term {
+    width: 470px; border-radius: 18px; overflow: hidden;
+    background: rgba(6, 10, 24, 0.92); border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 40px 90px rgba(0,0,0,0.55);
+  }
+  .bar { display: flex; gap: 9px; padding: 15px 18px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.10); }
+  .dot { width: 13px; height: 13px; border-radius: 50%; background: #ff5f57; }
+  .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .body { padding: 22px 22px 26px; font-family: "SF Mono", Menlo, Monaco, monospace; font-size: 17.5px; line-height: 1.75; }
+  .p { color: #9fb0d8; } .c { color: #6ee7b7; } .o { color: #ffd479; } .d { color: #c9d6ff; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="wrap">
+    <div class="left">
+      <div class="brand"><span class="chip">Unofficial · Free GLM Pool</span></div>
+      <h1>ZCode <span class="arrow">→</span> OpenCode<br>Bridge</h1>
+      <div class="sub">Run <b>GLM-5.3</b> and <b>GLM-5.3-Flash</b> inside OpenCode — powered by your ZCode plan's free token pool.</div>
+      <div class="pills">
+        <span class="pill g">⚡ One-command install</span>
+        <span class="pill">🛠 Native tool use</span>
+        <span class="pill">🔁 Streaming SSE</span>
+        <span class="pill">🔒 Loopback only</span>
+      </div>
+    </div>
+    <div class="right">
+      <div class="term">
+        <div class="bar"><span class="dot"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <div class="body">
+          <div><span class="p">$</span> <span class="d">opencode run \</span></div>
+          <div>&nbsp;&nbsp;<span class="o">--model</span> <span class="d">zcode/GLM-5.3-Flash</span> \</div>
+          <div>&nbsp;&nbsp;<span class="s" style="color:#f2a6c0">"Say exactly OK"</span></div>
+          <div><span class="c">OK</span></div>
+          <div>&nbsp;</div>
+          <div><span class="p">$</span> <span class="d">opencode run \</span></div>
+          <div>&nbsp;&nbsp;<span class="o">--model</span> <span class="d">zcode/GLM-5.3-Flash</span> \</div>
+          <div>&nbsp;&nbsp;<span class="s" style="color:#f2a6c0">"Use bash: echo BRIDGE_OK"</span></div>
+          <div><span class="p">$</span> <span class="d">echo BRIDGE_OK</span></div>
+          <div><span class="c">BRIDGE_OK</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

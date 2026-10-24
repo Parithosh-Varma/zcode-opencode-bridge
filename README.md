@@ -1,227 +1,213 @@
-# ZCode → OpenCode Bridge
+<p align="center">
+  <img src="docs/banner.png" alt="ZCode → OpenCode Bridge" width="830">
+</p>
 
-Use ZCode's free GLM token pool from [OpenCode](https://opencode.ai).
+<h1 align="center">ZCode → OpenCode Bridge</h1>
 
-This is an unofficial compatibility bridge. It runs inside the ZCode desktop app's agent process, captures the app's own model-request headers and official system prompt, and exposes a local Anthropic-compatible endpoint that OpenCode can use.
+<p align="center">
+  <strong>Run GLM-5.3 and GLM-5.3-Flash inside OpenCode — powered by your ZCode plan's free token pool.</strong>
+</p>
 
-> [!WARNING]
-> This project is unofficial and is not affiliated with ZCode, Z.ai, or OpenCode.
-> It may stop working when the ZCode app or gateway changes, and using it may
-> violate ZCode's terms of service. Use your own account and plan. No warranty.
+<p align="center">
+  <a href="https://github.com/Parithosh-Varma/zcode-opencode-bridge/actions/workflows/ci.yml"><img src="https://github.com/Parithosh-Varma/zcode-opencode-bridge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/platform-macos-333?logo=apple&logoColor=white" alt="Platform: macOS">
+  <img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white" alt="Node >= 18">
+  <img src="https://img.shields.io/badge/status-unofficial-e67e22" alt="Unofficial">
+</p>
 
-## How it works
+---
+
+## 💡 Why
+
+ZCode ships with a generous free GLM token pool — but it's locked to the ZCode app.
+OpenCode is a great terminal coding agent — but you have to bring your own (paid) API key.
+
+**This bridge connects the two.** It runs a tiny local proxy *inside* ZCode's own agent
+process, reuses the app's authenticated session, and exposes a standard
+Anthropic-compatible endpoint that OpenCode connects to. No API key. No Coding Plan
+subscription. Just your existing ZCode plan.
 
 ```text
-OpenCode (provider: zcode)
-        │  POST /messages
-        ▼
-127.0.0.1:8789  front proxy
-  • removes OpenCode's system prompt
-  • adds a short note to the first user message
-        │
-        ▼
-127.0.0.1:8788  bridge (inside ZCode's agent process)
-  • injects the first two blocks of ZCode's official system prompt
-  • copies the app's metadata and max_tokens cap
-  • forwards with the app's captured request headers
-        │
-        ▼
-https://zcode.z.ai/api/v1/zcode-plan/anthropic/v1/messages
+✅ 300,000,000 free units (GLM-5.3-Flash) + 200,000,000 (GLM-5.3) with the ZCode 1024 Dev Day plan
 ```
 
-The ZCode gateway rejects requests that contain a non-ZCode top-level `system`
-prompt:
+## ✨ Features
 
-```json
-{"code":3012,"msg":"request has been blocked due to unusual activity."}
-```
+| | |
+|---|---|
+| ⚡ **One-command install** | `./install.sh` patches your local ZCode agent and sets up a LaunchAgent |
+| 🛠 **Native tool use** | OpenCode's bash/read/edit tools work end-to-end |
+| 🔁 **Streaming SSE** | Real-time token streaming, fully piped through |
+| 🧠 **Auto warm-up** | Captures the app's session automatically on your first ZCode message |
+| 🔒 **Loopback only** | Binds to `127.0.0.1` — nothing leaves your machine except model calls |
+| 🔐 **No stored credentials** | Auth lives in memory inside the agent process; never written to disk |
+| 🧹 **Clean uninstall** | Two commands and it's gone |
 
-The front proxy removes OpenCode's system prompt. The bridge then inserts the
-official ZCode identity prompt captured from the app, so the gateway accepts the
-request. OpenCode's tools and messages are left intact.
+## 🚀 Quick start
 
-## Requirements
-
-- macOS
-- ZCode desktop app installed (tested with ZCode 3.16.3)
-- Node.js 18+ (Node 24 recommended)
-- OpenCode with a custom Anthropic provider
-
-## Install
-
-```sh
+```bash
 git clone https://github.com/Parithosh-Varma/zcode-opencode-bridge.git
 cd zcode-opencode-bridge
 ./install.sh
 ```
 
-The installer:
+Then:
 
-- copies the installed ZCode agent into
-  `~/.config/opencode/zcode-bridge/agent` and injects `zcode-http-hook.cjs`
-- copies the bridge and front proxy
-- creates `start-zcode.sh` and `start-front.sh`
-- installs and starts a LaunchAgent for the front proxy
-  (`com.zcode-bridge.front`)
+1. **Quit ZCode** completely
+2. **Relaunch it** through the bridge:
+   ```bash
+   ~/.config/opencode/zcode-bridge/start-zcode.sh
+   ```
+3. **Send one message** in any ZCode task (e.g. `hi`) — this warms up the bridge
+4. **Verify:**
+   ```bash
+   curl -s http://127.0.0.1:8789/health
+   # {"ok":true,...}
+   ```
+5. **Add the provider** from [`opencode.json.example`](opencode.json.example) to `~/.config/opencode/opencode.json`, then:
 
-Use a custom directory:
+```bash
+opencode run --model zcode/GLM-5.3-Flash "Say exactly OK"
+# OK
 
-```sh
-ZCODE_BRIDGE_DIR="$HOME/zcode-bridge" ./install.sh
+opencode run --model zcode/GLM-5.3-Flash \
+  "Use the bash tool to run 'echo BRIDGE_OK' and report the output."
+# $ echo BRIDGE_OK
+# BRIDGE_OK
 ```
 
-Skip the LaunchAgent and run the front proxy manually:
+Or just pick `zcode/GLM-5.3-Flash` in OpenCode's model picker and use it interactively.
 
-```sh
+## 🏗 How it works
+
+```mermaid
+flowchart LR
+    A["OpenCode<br/>(provider: zcode)"] -->|POST /messages| B["Front proxy<br/>127.0.0.1:8789<br/><i>strips OpenCode system prompt</i>"]
+    B --> C["In-agent bridge<br/>127.0.0.1:8788<br/><i>injects official ZCode prompt</i>"]
+    C -->|app's captured headers| D["zcode.z.ai<br/>/zcode-plan/anthropic/v1/messages"]
+    
+    E["ZCode app<br/>(launched via start-zcode.sh)"] -.->|hooks fetch, captures session| C
+```
+
+The ZCode gateway rejects any request whose top-level `system` prompt isn't the
+official ZCode one:
+
+```json
+{"code": 3012, "msg": "request has been blocked due to unusual activity."}
+```
+
+So the bridge does a two-step swap:
+
+1. The **front proxy** removes OpenCode's system prompt and adds a short note to the first user message
+2. The **in-agent hook** captures the app's own official system prompt on its next model call and injects the first two blocks (ZCode's stable identity prompt) into every forwarded request
+
+Everything else — OpenCode's tools, messages, and streaming — passes through untouched.
+
+<details>
+<summary><b>📦 What exactly gets captured and injected?</b></summary>
+
+When ZCode makes a model request, the hook stores **in memory only**:
+
+- Request headers (auth, session ID, client fingerprint)
+- The first two blocks of the official system prompt (the "identity" prompt)
+- The app's `metadata` and `max_tokens` cap
+
+It deliberately **ignores** auxiliary requests (title generators, summaries) so a
+background title call can't overwrite the real agent prompt.
+
+OpenCode's requests get the identity prompt + the app's metadata. Your conversation
+and tools flow through as-is.
+
+</details>
+
+## 📋 Requirements
+
+- macOS
+- [ZCode](https://z.ai) desktop app (tested with 3.16.3)
+- Node.js 18+
+- [OpenCode](https://opencode.ai)
+
+## ⚙️ Install options
+
+```bash
+# Custom install directory
+ZCODE_BRIDGE_DIR="$HOME/zcode-bridge" ./install.sh
+
+# Skip the LaunchAgent, run the front proxy manually
 ./install.sh --no-launchd
 ```
 
-## Start ZCode correctly
+The installer:
+- Copies your installed ZCode agent to `~/.config/opencode/zcode-bridge/agent` and injects the hook (the app itself is **never modified**)
+- Creates `start-zcode.sh` / `start-front.sh`
+- Installs and starts a LaunchAgent for the front proxy
 
-The bridge only exists when ZCode is started with the patched agent as its
-working directory. Quit any running ZCode instance, then run:
+## ⚠️ Important usage notes
 
-```sh
-~/.config/opencode/zcode-bridge/start-zcode.sh
+- **Always launch ZCode via `start-zcode.sh`** — opening it from the Dock uses the unpatched agent and the bridge won't exist
+- **ZCode must stay running** while OpenCode uses the bridge
+- If you restart ZCode, send one message in a task to re-warm the bridge
+
+<details>
+<summary><b>🔧 Troubleshooting</b></summary>
+
+**`503 bridge_not_ready`** — the bridge hasn't captured a session yet.
+Restart ZCode via `start-zcode.sh` and send one message in a task.
+
+**`405` with `"code":3012`** — the gateway didn't see the official prompt.
+Same fix: relaunch via `start-zcode.sh`, warm up with one message.
+
+**`EADDRINUSE` on 8788/8789** — another ZCode instance or proxy is running.
+Quit all ZCode processes, then restart via `start-zcode.sh`.
+
+**OpenCode can't connect** — start the front proxy:
+```bash
+launchctl kickstart -k "gui/$(id -u)/com.zcode-bridge.front"
 ```
 
-Do **not** open ZCode from the Dock while using the bridge: the Dock launch uses
-the original agent and will not start the bridge.
+</details>
 
-After ZCode starts, open a task and send one message (for example, `hi`). This
-lets the hook capture the app's request headers and official system prompt.
+<details>
+<summary><b>❓ FAQ</b></summary>
 
-Check readiness:
+**Is this an API key?** No. It reuses your ZCode app's authenticated session. No keys are stored anywhere.
 
-```sh
-curl -s http://127.0.0.1:8789/health
-```
+**Does this cost money?** It consumes your ZCode plan's free token pool. Nothing else.
 
-Expected when ready:
+**Will it break?** Possibly — if ZCode changes its gateway rules or agent bundle layout. Pinned/tested against 3.16.3.
 
-```json
-{"ok":true,"front":{...},"bridge":{"ok":true,"hasTemplate":true,"hasHeaders":true}}
-```
+**Can I use other clients?** Anything that speaks the Anthropic Messages API can point at `http://127.0.0.1:8789`.
 
-## Configure OpenCode
+**Is this allowed?** Unofficial and likely against ZCode's ToS. Use at your own risk with your own account.
 
-Merge `opencode.json.example` into `~/.config/opencode/opencode.json`:
+</details>
 
-```json
-{
-  "provider": {
-    "zcode": {
-      "npm": "@ai-sdk/anthropic",
-      "name": "ZCode Free Pool",
-      "options": {
-        "baseURL": "http://127.0.0.1:8789",
-        "apiKey": "zcode-bridge"
-      },
-      "models": {
-        "GLM-5.3-Flash": {
-          "name": "GLM-5.3-Flash (ZCode free pool)"
-        },
-        "GLM-5.3": {
-          "name": "GLM-5.3 (ZCode free pool)"
-        }
-      }
-    }
-  }
-}
-```
+## 🔐 Privacy & security
 
-Then select `zcode/GLM-5.3-Flash` in the model picker, or run:
+- Auth headers live **in memory** inside the agent process — never written to disk
+- Both servers bind to `127.0.0.1` only
+- `ZCODE_DEBUG=1` enables metadata-only logs (no headers, no bodies)
+- This repo contains **zero credentials** and does **not** redistribute the ZCode app — the installer copies it from your own installation
 
-```sh
-opencode run --model zcode/GLM-5.3-Flash "Say exactly OK"
-```
+## 🗑 Uninstall
 
-Tool use works; for example:
-
-```sh
-opencode run --model zcode/GLM-5.3-Flash \
-  "Use the bash tool to run 'echo BRIDGE_OK' and report the output."
-```
-
-## Troubleshooting
-
-### `503 bridge_not_ready`
-
-The bridge has not captured the app's model request yet, or the front proxy
-cannot reach the bridge.
-
-1. Confirm ZCode was started with `start-zcode.sh`, not from the Dock.
-2. Send a message in a ZCode task and wait for the reply.
-3. Check `curl -s http://127.0.0.1:8789/health`.
-4. If the front proxy is not running:
-   ```sh
-   launchctl kickstart -k "gui/$(id -u)/com.zcode-bridge.front"
-   ```
-
-### `405` with `"code":3012`
-
-The gateway did not receive the official ZCode system prompt. Usually this means
-the bridge was not warmed up, or ZCode was launched with the unpatched agent.
-Restart ZCode with `start-zcode.sh` and send one message in a task.
-
-### `EADDRINUSE` / port 8788 or 8789 already in use
-
-Another ZCode instance or front proxy is already running. Quit all ZCode
-instances, then restart with `start-zcode.sh`. If you previously ran a manual
-bridge, stop that process first.
-
-### OpenCode cannot connect (`ECONNREFUSED`)
-
-Start the front proxy:
-
-```sh
-~/.config/opencode/zcode-bridge/start-front.sh
-```
-
-or reload the LaunchAgent:
-
-```sh
-launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.zcode-bridge.front.plist 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.zcode-bridge.front.plist
-```
-
-### The model ignores OpenCode-specific instructions
-
-This bridge intentionally drops OpenCode's system prompt and uses ZCode's
-official identity prompt. OpenCode's tool schemas and conversation are still
-sent, so tool use works, but some OpenCode-specific behaviors may differ.
-
-## Privacy and security
-
-- The hook keeps the app's headers in memory. It does not write credentials to
-  disk.
-- `ZCODE_DEBUG=1` enables metadata-only logs in
-  `$ZCODE_BRIDGE_DIR/logs`. Headers and message bodies are not logged.
-- Both servers bind to `127.0.0.1` only. Any local process can use the bridge
-  while ZCode is running, so do not expose the ports or run untrusted software
-  on the same account.
-- This repository contains no credentials and does not redistribute the ZCode
-  app bundle. The installer copies the agent from your own ZCode installation.
-
-## Uninstall
-
-```sh
+```bash
 launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.zcode-bridge.front.plist 2>/dev/null || true
 rm -f ~/Library/LaunchAgents/com.zcode-bridge.front.plist
 rm -rf ~/.config/opencode/zcode-bridge
 ```
 
-Then quit ZCode and remove the `zcode` provider from your OpenCode config.
+Then remove the `zcode` provider from your OpenCode config.
 
-## Limitations
+## ⚖️ Disclaimer & license
 
-- ZCode must stay running while the bridge is in use.
-- Only the ZCode plan endpoint is forwarded; this is not a general Z.ai API
-  proxy.
-- Tested on macOS with the Intel build of ZCode 3.16.3 (running under Rosetta on
-  Apple Silicon). Other versions may use different agent paths or prompt rules.
-- The gateway may change its risk-control rules at any time.
+This project is **unofficial** and not affiliated with ZCode, Z.ai, or OpenCode.
+It may stop working at any time and may violate ZCode's terms of service. Use your
+own account. No warranty.
 
-## License
+[MIT](LICENSE) © Parithosh Varma
 
-MIT. See [LICENSE](LICENSE).
+---
+
+<p align="center">Found this useful? <b>⭐ Star the repo</b> to help others find it.</p>
